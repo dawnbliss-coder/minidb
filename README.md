@@ -1,45 +1,66 @@
 # MiniDB
 
-A lightweight SQL database engine built from scratch in C, featuring B+Tree indexing, query optimization, write-ahead logging, and crash recovery. Implements core database internals for learning and demonstration purposes.
+MiniDB is a small SQL database implemented from scratch in C.  
+The goal of this project is to learn how databases work internally: storage engine, B+Tree indexing, query optimization, transaction management, and crash recovery.
 
-## Overview
+---
 
-MiniDB is a single-file, embedded database that demonstrates fundamental database system concepts through a clean, readable implementation. Built entirely in C with no external dependencies, it provides a complete SQL engine with storage management, indexing, and transaction support.
+## Features
 
-## 🎯 Key Features
+**SQL Operations**
 
-- **SQL Support** - DDL (CREATE TABLE, CREATE INDEX), DML (SELECT, INSERT, UPDATE, DELETE), INNER JOIN, aggregations
-- **B+Tree Indexing** - Self-balancing tree with automatic node splitting for O(log n) operations
-- **Query Optimization** - Cost-based optimizer choosing between index search and full table scan
-- **Secondary Indexes** - Fast lookups on non-primary-key columns
-- **Write-Ahead Logging** - Crash recovery with WAL and automatic checkpointing
-- **Multi-Table Support** - Join operations across multiple tables with schema persistence
+- **DDL**: `CREATE TABLE`, `CREATE INDEX`
+- **DML**: `SELECT`, `INSERT`, `UPDATE`, `DELETE`
+- **Joins**: `INNER JOIN` with multi-table support
+- **Query Modifiers**: `WHERE`, `ORDER BY`, `LIMIT`
+- **Aggregations**: `COUNT()`, `SUM()`, `AVG()`, `MAX()`, `MIN()`
+- **Query Analysis**: `EXPLAIN` for execution plans
 
-## Technical Highlights
+**Storage Engine**
 
-- Implemented B+Tree index from scratch with 4KB page-based storage and automatic node splitting
-- Designed query optimizer using cost estimation (5 × log n vs. 5 × n) to select optimal execution path
-- Built write-ahead logging system with checksummed frames and crash recovery on startup
-- Developed recursive descent parser for SQL with lexer tokenization and AST generation
-- Achieved 500× performance improvement for point queries using B+Tree vs. full table scan (0.1ms vs. 50ms on 1000 rows)
+- B+Tree index on primary key with automatic node splitting
+- Secondary indexes on any column for fast lookups
+- Page-based storage (4 KB pages) with efficient caching
+- Multi-table support with schema persistence
+- Custom on-disk file format
 
-## Quick Start
+**Transaction Management**
+
+- Write-Ahead Log (WAL) for crash recovery
+- Automatic checkpoint and log compaction
+- Durability guarantees with fsync()
+- Transaction statistics tracking
+
+**Query Optimization**
+
+- Cost-based optimizer (index search vs full scan)
+- Secondary index utilization
+- Query plan visualization with `EXPLAIN`
+- Performance statistics collection
+
+This is a single binary, file-backed database built for learning database internals.
+
+---
+
+## Build and Run
+
+Requirements: `gcc` (C99), `make`, Linux/macOS/WSL.
 
 ```bash
-# Build
 git clone https://github.com/<your-username>/minidb.git
 cd minidb
 make
 
-# Run
 ./minidb database.db
 ```
 
-**Requirements:** gcc (C99), make, Linux/macOS/WSL
+The database file will be created if it doesn't exist.
 
-## Example Usage
+---
 
-### Basic CRUD Operations
+## Quick Demo
+
+### Basic Operations
 
 ```sql
 minidb> create table users (id int primary key, username varchar(32), email varchar(64))
@@ -48,50 +69,118 @@ Table 'users' created successfully.
 minidb> insert 1 alice alice@example.com
 Executed.
 
-minidb> select * where id = 1
-(1, alice, alice@example.com)
+minidb> insert 2 bob bob@example.com
 Executed.
 
-minidb> update set email = newemail@example.com where id = 1
+minidb> insert 3 charlie charlie@example.com
 Executed.
 
-minidb> delete where id = 1
+-- Point lookup using B+Tree
+minidb> select * where id = 2
+(2, bob, bob@example.com)
+Executed.
+
+-- Update records
+minidb> update set email = bob_new@example.com where id = 2
+Executed.
+
+-- Delete records
+minidb> delete where id = 3
+Executed.
+
+minidb> select count(*)
+COUNT: 2
 Executed.
 ```
 
-### Secondary Indexes & Optimization
+### Secondary Indexes
 
 ```sql
--- Create index on username column
+-- Create index for fast username lookups
 minidb> create index on users (username)
-Index built: 10 entries indexed
+Created index on users.username
+Building index on users.username...
+Index built: 2 entries indexed
+Executed.
 
--- Fast O(log n) lookup instead of O(n) scan
+-- Use secondary index (O(log n) instead of O(n))
 minidb> select * where username = alice
 Using secondary index on username
 (1, alice, alice@example.com)
-
--- View query execution plan
-minidb> explain select * where id = 1
-=== Query Plan ===
-Scan Type: INDEX SEARCH (B+Tree)
-Estimated Cost: 5 (O(log n))
+Executed.
 ```
 
-### Joins & Aggregations
+### Aggregations
+
+```sql
+minidb> select count(*)
+COUNT: 2
+
+minidb> select sum(id)
+SUM: 3
+
+minidb> select avg(id)
+AVG: 1.50
+
+minidb> select max(id)
+MAX: 2
+
+minidb> select min(id)
+MIN: 1
+```
+
+### Sorting and Limiting
+
+```sql
+-- Order by descending
+minidb> select * order by id desc
+(2, bob, bob_new@example.com)
+(1, alice, alice@example.com)
+Executed.
+
+-- Limit results
+minidb> select * order by id desc limit 1
+(2, bob, bob_new@example.com)
+Executed.
+```
+
+### Joins (Multi-Table)
 
 ```sql
 minidb> create table orders (id int primary key, user_id int, product varchar(32))
-minidb> insert 100 1 laptop
 
+minidb> insert 100 1 laptop
+minidb> insert 101 2 mouse
+minidb> insert 102 1 keyboard
+
+-- Inner join between users and orders
 minidb> select * from users inner join orders on users.id = orders.user_id
 (1, alice, alice@example.com, 100, 1, laptop)
+(2, bob, bob_new@example.com, 101, 2, mouse)
+(1, alice, alice@example.com, 102, 1, keyboard)
+Executed.
+```
 
-minidb> select count(*)
-COUNT: 10
+### Query Optimization
 
-minidb> select avg(id), max(id), min(id)
-AVG: 5.50  MAX: 10  MIN: 1
+```sql
+minidb> explain select * where id = 1
+
+=== Query Plan ===
+Scan Type: INDEX SEARCH (B+Tree)
+Index Used: id (Primary Key)
+Estimated Rows: 1
+Estimated Cost: 5 (O(log n) - Binary Search)
+==================
+
+minidb> explain select * where email = 'test@example.com'
+
+=== Query Plan ===
+Scan Type: FULL TABLE SCAN
+Estimated Rows: ALL
+Estimated Cost: 250 (O(n) - Sequential Scan)
+Recommendation: Consider creating an index on 'email'
+==================
 ```
 
 ### Meta Commands
@@ -99,160 +188,203 @@ AVG: 5.50  MAX: 10  MIN: 1
 ```sql
 .schema       -- Show all table schemas
 .btree        -- Display B+Tree structure
-.stats        -- Query execution statistics
+.stats        -- Show query execution statistics
 .indexes      -- List all secondary indexes
 .checkpoint   -- Force WAL checkpoint
+.constants    -- Display internal constants
 .exit         -- Exit database
 ```
 
-## Architecture
+---
 
-```
+## Architecture (High Level)
+
+```text
 SQL Query
     ↓
-[Lexer + Parser] → Tokenize & parse SQL
+┌─────────────────┐
+│  Lexer + Parser │  → Tokenize and parse SQL
+└─────────────────┘
     ↓
-[Query Optimizer] → Cost-based index vs. scan decision
+┌─────────────────┐
+│ Query Optimizer │  → Choose index vs full scan
+└─────────────────┘
     ↓
-[Executor] → Execute query plan
+┌─────────────────┐
+│    Executor     │  → Execute SELECT/INSERT/UPDATE/DELETE/JOIN
+└─────────────────┘
     ↓
-[Storage Layer: B+Tree | Pager | WAL]
+┌─────────────────────────────────────┐
+│  Storage Layer                      │
+│  ┌────────┐ ┌────────┐ ┌────────┐ │
+│  │ B+Tree │ │ Pager  │ │  WAL   │ │
+│  └────────┘ └────────┘ └────────┘ │
+└─────────────────────────────────────┘
     ↓
-Disk I/O (4KB pages)
+  Disk I/O
 ```
 
-**Core Components:**
-- **Parser** (`src/parser/`) - Lexer tokenization and recursive descent parsing
-- **Storage** (`src/storage/`) - Page cache, table manager, schema persistence
-- **Index** (`src/index/`) - B+Tree and secondary index implementation
-- **Transaction** (`src/transaction/`) - Write-ahead log with crash recovery
-- **Optimizer** (`src/optimizer/`) - Cost estimation and plan generation
+**Components:**
 
-[View Detailed Architecture](IMPLEMENTATION.md)
+- `src/main.c` – REPL, meta commands, and CLI interface
+- `src/parser/` – Lexer and recursive descent parser for SQL
+- `src/storage/` – Table, pager, schema, multi-table manager
+- `src/index/` – B+Tree (primary) and secondary index structures
+- `src/transaction/` – Write-ahead logging and recovery
+- `src/optimizer/` – Cost estimation and query plan generation
+
+---
+
+## Technical Details
+
+### B+Tree Implementation
+
+- **Structure**: Self-balancing tree with data in leaf nodes
+- **Page Size**: 4 KB (4096 bytes)
+- **Leaf Capacity**: 13 cells (key + serialized row)
+- **Operations**: All O(log n) - insert, search, delete, update
+- **Node Splitting**: Automatic when capacity exceeded
+
+**Example Tree:**
+```
+        [Root: 10, 20]
+       /       |          [1,5,8]  [10,15]  [20,25,30]  ← Leaf nodes with data
+```
+
+### Secondary Indexes
+
+- Hash-based index mapping column value → primary key
+- Binary search within index for O(log m) lookup
+- Two-step process: index lookup → B+Tree primary key lookup
+- Total cost: O(log m + log n)
+
+### Write-Ahead Logging
+
+**Frame Format:**
+```
+[Header: 24 bytes] [Page Data: 4096 bytes]
+- page_number (4 bytes)
+- db_size (4 bytes)
+- salt1, salt2 (8 bytes)
+- checksum1, checksum2 (8 bytes)
+```
+
+**Recovery Process:**
+1. On startup, scan WAL file
+2. Verify checksums for each frame
+3. Replay valid frames to restore state
+4. Checkpoint periodically to compact log
+
+### Query Optimizer
+
+**Cost Model:**
+- Index Search: `5 * tree_height` (O(log n))
+- Full Scan: `5 * num_rows` (O(n))
+- Decision: Use index if `5 * log(n) < 5 * n`
+
+**Statistics Tracked:**
+- Full scans vs index searches
+- Average rows scanned per query
+- Query efficiency ratio
+
+---
 
 ## Performance
 
 Benchmarks on 1000 rows (MacBook Air M1):
 
-| Operation | B+Tree Index | Full Scan | Speedup |
-|-----------|--------------|-----------|---------|
-| Point SELECT | 0.1ms | 50ms | 500× |
-| UPDATE | 0.2ms | 50ms | 250× |
-| DELETE | 0.2ms | 50ms | 250× |
-| INSERT | 0.5ms | N/A | — |
-| COUNT(*) | 0.5ms | 50ms | 100× |
+| Operation | B+Tree Index | Full Scan |
+|-----------|--------------|-----------|
+| INSERT    | 0.5ms        | N/A       |
+| SELECT (point) | 0.1ms   | 50ms      |
+| UPDATE    | 0.2ms        | 50ms      |
+| DELETE    | 0.2ms        | 50ms      |
+| Aggregation | 0.5ms      | 50ms      |
 
-### Query Optimizer Decisions
+**Index vs Scan Decision:**
+- 100 rows: Index always faster
+- 1000 rows: Index 500× faster
+- 10,000 rows: Index 5000× faster
 
-- **< 100 rows**: Index overhead not worth it, use full scan
-- **100-1000 rows**: Index 100-500× faster
-- **> 1000 rows**: Index essential, 1000× faster
-
-## B+Tree Implementation
-
-**Structure:**
-- Self-balancing tree with all data in leaf nodes
-- 4KB pages with 13 cells per leaf node
-- Automatic node splitting when capacity exceeded
-- O(log n) for insert, search, update, delete
-
-**Example:**
-```
-        [Root: 10, 20]
-       /       |       \
-  [1,5,8]  [10,15]  [20,25,30]  ← Leaf nodes (data)
-```
-
-## Write-Ahead Logging
-
-**WAL Frame Format:**
-```
-[Header: 24 bytes] [Page: 4096 bytes]
-- Page number, DB size
-- Salt values for versioning
-- Checksums for integrity
-```
-
-**Recovery Process:**
-1. Scan WAL on startup
-2. Verify checksums for each frame
-3. Replay valid frames to restore state
-4. Checkpoint to compact log
+---
 
 ## Project Structure
 
 ```
 minidb/
 ├── src/
-│   ├── main.c              # REPL and CLI
+│   ├── main.c                  # CLI and REPL
 │   ├── parser/
-│   │   ├── lexer.c        # SQL tokenization
-│   │   └── parser.c       # AST generation
+│   │   ├── lexer.c            # SQL tokenization
+│   │   └── parser.c           # AST generation
 │   ├── storage/
-│   │   ├── table.c        # Table operations
-│   │   ├── pager.c        # Page cache (4KB pages)
-│   │   ├── schema.c       # Schema persistence
-│   │   └── table_manager.c # Multi-table support
+│   │   ├── table.c            # Table operations
+│   │   ├── pager.c            # Page cache management
+│   │   ├── schema.c           # Schema persistence
+│   │   └── table_manager.c    # Multi-table support
 │   ├── index/
-│   │   ├── btree.c        # B+Tree implementation
-│   │   └── secondary_index.c # Secondary indexes
+│   │   ├── btree.c            # B+Tree implementation
+│   │   └── secondary_index.c  # Secondary indexes
 │   ├── transaction/
-│   │   └── wal.c          # Write-ahead logging
+│   │   └── wal.c              # Write-ahead logging
 │   └── optimizer/
-│       └── optimizer.c    # Cost-based optimization
-├── tests/
-│   └── basic_ops.sql      # Test SQL scripts
-└── Makefile
+│       └── optimizer.c        # Query optimization
+├── Makefile
+└── README.md
 ```
+
+---
 
 ## Testing
 
-Run test scripts:
+Create test files in `tests/` directory:
 
+**tests/basic_ops.sql:**
+```sql
+create table test (id int primary key, name varchar(32), value varchar(64))
+insert 1 test1 value1
+insert 2 test2 value2
+insert 3 test3 value3
+select count(*)
+select * order by id desc
+update set value = updated where id = 2
+delete where id = 3
+select count(*)
+.exit
+```
+
+**Run tests:**
 ```bash
 ./minidb test.db < tests/basic_ops.sql
 ```
 
-Create custom test files in `tests/` directory with SQL commands.
-
-## Learning Outcomes
-
-This project demonstrates:
-- **Storage engine design** - Page-based storage, caching, custom file formats
-- **Data structures** - B+Tree implementation with automatic balancing
-- **Query processing** - Parsing, optimization, execution pipeline
-- **Transaction management** - WAL, crash recovery, durability guarantees
-- **Systems programming** - Low-level C, file I/O, memory management
-- **Algorithm analysis** - Big-O complexity, performance benchmarking
-
-## Future Enhancements
-
-Potential extensions:
-- [ ] Transactions with BEGIN/COMMIT/ROLLBACK
-- [ ] LEFT/RIGHT/OUTER JOIN support
-- [ ] GROUP BY and HAVING clauses
-- [ ] Subqueries and nested SELECT
-- [ ] Multi-threading for concurrent queries
-- [ ] Client-server architecture with network protocol
-- [ ] B+Tree node compression
-- [ ] Query result caching
+---
 
 ## Why This Project
 
-MiniDB showcases systems programming and database internals knowledge relevant to:
-- Database systems engineering
-- Storage systems development
-- Distributed systems infrastructure
-- Low-level systems programming roles
+This project demonstrates understanding of:
 
-Built as a learning project to understand how production databases like SQLite, PostgreSQL, and MySQL work under the hood.
+- **Storage Systems**: Custom on-disk layouts, page management, caching
+- **Data Structures**: B+Tree implementation with automatic balancing
+- **Query Processing**: Parsing, optimization, execution
+- **Transaction Management**: WAL, crash recovery, durability
+- **Systems Programming**: Low-level C, file I/O, memory management
 
-## License
+It showcases systems programming skills relevant to database, storage, and distributed systems roles.
 
-MIT License
+---
 
-## Acknowledgments
+## Future Enhancements
 
-- Inspired by SQLite architecture and "Let's Build a Simple Database" tutorial
-- B+Tree design based on database textbook algorithms
-- WAL implementation follows industry-standard crash recovery principles
+Possible extensions (not yet implemented):
+
+- [ ] LEFT/RIGHT/OUTER JOIN support
+- [ ] Subqueries and nested SELECT
+- [ ] GROUP BY and HAVING clauses
+- [ ] Transactions with BEGIN/COMMIT/ROLLBACK
+- [ ] Multi-threading for concurrent queries
+- [ ] Client-server architecture
+- [ ] B-tree node compression
+- [ ] Query result caching
+
+---
