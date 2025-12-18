@@ -277,11 +277,6 @@ SQL Query
 
 ### Query Optimizer
 
-**Cost Model:**
-- Index Search: `5 * tree_height` (O(log n))
-- Full Scan: `5 * num_rows` (O(n))
-- Decision: Use index if `5 * log(n) < 5 * n`
-
 **Statistics Tracked:**
 - Full scans vs index searches
 - Average rows scanned per query
@@ -289,22 +284,6 @@ SQL Query
 
 ---
 
-## Performance
-
-Benchmarks on 1000 rows (MacBook Air M1):
-
-| Operation | B+Tree Index | Full Scan |
-|-----------|--------------|-----------|
-| INSERT    | 0.5ms        | N/A       |
-| SELECT (point) | 0.1ms   | 50ms      |
-| UPDATE    | 0.2ms        | 50ms      |
-| DELETE    | 0.2ms        | 50ms      |
-| Aggregation | 0.5ms      | 50ms      |
-
-**Index vs Scan Decision:**
-- 100 rows: Index always faster
-- 1000 rows: Index 500× faster
-- 10,000 rows: Index 5000× faster
 
 ---
 
