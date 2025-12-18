@@ -248,7 +248,8 @@ SQL Query
 **Example Tree:**
 ```
         [Root: 10, 20]
-       /       |          [1,5,8]  [10,15]  [20,25,30]  ← Leaf nodes with data
+       /       |
+ [1,5,8]  [10,15]  [20,25,30]  ← Leaf nodes with data
 ```
 
 ### Secondary Indexes
