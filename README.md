@@ -13,27 +13,6 @@ The goal of this project is to learn how databases work internally: storage engi
 
 </div>
 
-<br>
-
-## Table of Contents
-
-- [Features](#-features)
-- [Build and Run](#-build-and-run)
-- [Quick Demo](#-quick-demo)
-  - [Basic Operations](#basic-operations)
-  - [Secondary Indexes](#secondary-indexes)
-  - [Aggregations](#aggregations)
-  - [Sorting and Limiting](#sorting-and-limiting)
-  - [Joins (Multi-Table)](#joins-multi-table)
-  - [Query Optimization](#query-optimization)
-  - [Meta Commands](#meta-commands)
-- [Architecture](#-architecture-high-level)
-- [Technical Details](#-technical-details)
-- [Project Structure](#-project-structure)
-- [Known Limitations](#-known-limitations)
-
-<br>
-
 ## Features
 
 <table>
@@ -380,7 +359,7 @@ minidb/
 
 MiniDB is a learning project, not a production database. A few things worth knowing before you rely on it for anything real:
 
-> [!WARNING]
+> [!LIMITATION]
 > **Fixed row shape.** Every table is physically stored as one integer primary key plus two string columns, regardless of the column types you declare in `CREATE TABLE`. Extra/differently-typed columns beyond that (e.g. a 4th column, or a `FLOAT`) aren't supported by the storage layer yet — `CREATE TABLE` schemas are used for display and column-name resolution (e.g. in `JOIN`/`WHERE`), but the on-disk layout is always `(id, col2, col3)`.
 
 - **No `INSERT INTO <table> VALUES (...)` syntax.** Inserts are positional (`insert <id> <col2> <col3>`) and always target the *active* table (see the Meta Commands section above).
