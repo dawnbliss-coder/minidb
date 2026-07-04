@@ -1,0 +1,46 @@
+# Compiled executables
+minidb
+*.out
+
+# Object files
+*.o
+build/*.o
+
+# Database files (generated during use/testing)
+# MiniDB creates one base file plus, per table, "<file>.<table>" and
+# "<file>.<table>-wal", and a shared "<file>.schema" file.
+*.db
+*.db-wal
+*.db-shm
+*.db.*
+*.db-schema
+
+# Test databases
+test.db*
+database.db*
+mydb.db*
+
+# macOS
+.DS_Store
+._*
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.cursor/
+
+# Temporary files
+*.tmp
+*.log
+
+# Build directory (if using separate build folder)
+build/
+bin/
+obj/
+
+# Core dumps
+core
+core.*
