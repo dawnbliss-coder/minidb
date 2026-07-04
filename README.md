@@ -1,11 +1,43 @@
+<div align="center">
+
 # MiniDB
 
-MiniDB is a small SQL database implemented from scratch in C.  
+**A small SQL database implemented from scratch in C.**
+
 The goal of this project is to learn how databases work internally: storage engine, B+Tree indexing, query optimization, transaction management, and crash recovery.
 
----
+![C](https://img.shields.io/badge/language-C99-00599C?style=flat-square&logo=c)
+![Make](https://img.shields.io/badge/build-Make-427819?style=flat-square)
+![Platform](https://img.shields.io/badge/platform-Linux%20%7C%20macOS%20%7C%20WSL-lightgrey?style=flat-square)
+![Status](https://img.shields.io/badge/status-learning%20project-orange?style=flat-square)
+
+</div>
+
+<br>
+
+## Table of Contents
+
+- [Features](#-features)
+- [Build and Run](#-build-and-run)
+- [Quick Demo](#-quick-demo)
+  - [Basic Operations](#basic-operations)
+  - [Secondary Indexes](#secondary-indexes)
+  - [Aggregations](#aggregations)
+  - [Sorting and Limiting](#sorting-and-limiting)
+  - [Joins (Multi-Table)](#joins-multi-table)
+  - [Query Optimization](#query-optimization)
+  - [Meta Commands](#meta-commands)
+- [Architecture](#-architecture-high-level)
+- [Technical Details](#-technical-details)
+- [Project Structure](#-project-structure)
+- [Known Limitations](#-known-limitations)
+
+<br>
 
 ## Features
+
+<table>
+<tr><td width="50%" valign="top">
 
 **SQL Operations**
 
@@ -16,6 +48,8 @@ The goal of this project is to learn how databases work internally: storage engi
 - **Aggregations**: `COUNT()`, `SUM()`, `AVG()`, `MAX()`, `MIN()`
 - **Query Analysis**: `EXPLAIN` for execution plans
 
+</td><td width="50%" valign="top">
+
 **Storage Engine**
 
 - B+Tree index on primary key with automatic node splitting
@@ -24,12 +58,17 @@ The goal of this project is to learn how databases work internally: storage engi
 - Multi-table support with schema persistence
 - Custom on-disk file format
 
+</td></tr>
+<tr><td width="50%" valign="top">
+
 **Transaction Management**
 
 - Write-Ahead Log (WAL) for crash recovery
 - Automatic checkpoint and log compaction
-- Durability guarantees with fsync()
+- Durability guarantees with `fsync()`
 - Transaction statistics tracking
+
+</td><td width="50%" valign="top">
 
 **Query Optimization**
 
@@ -38,9 +77,12 @@ The goal of this project is to learn how databases work internally: storage engi
 - Query plan visualization with `EXPLAIN`
 - Performance statistics collection
 
-This is a single binary, file-backed database built for learning database internals.
+</td></tr>
+</table>
 
----
+> This is a single binary, file-backed database built for learning database internals.
+
+<br>
 
 ## Build and Run
 
@@ -54,9 +96,10 @@ make
 ./minidb database.db
 ```
 
-The database file will be created if it doesn't exist.
+> [!TIP]
+> The database file will be created if it doesn't exist.
 
----
+<br>
 
 ## Quick Demo
 
@@ -163,10 +206,8 @@ users: (2, bob, bob_new@example.com) | orders: (101, 2, mouse)
 Executed.
 ```
 
-> Note: `CREATE TABLE` makes the new table "active", so statements right
-> after `create table orders (...)` (like the inserts above) apply to
-> `orders`, not `users`. Switch back with `.use users`, or just always
-> use `FROM`/`JOIN` clauses to be explicit about which table you mean.
+> [!NOTE]
+> `CREATE TABLE` makes the new table "active", so statements right after `create table orders (...)` (like the inserts above) apply to `orders`, not `users`. Switch back with `.use users`, or just always use `FROM`/`JOIN` clauses to be explicit about which table you mean.
 
 ### Query Optimization
 
@@ -192,27 +233,24 @@ Estimated Cost: 15 (O(n) - Linear Scan)
 
 ### Meta Commands
 
-```sql
-.schema       -- Show all table schemas
-.btree        -- Display B+Tree structure of the active table
-.stats        -- Show query execution statistics
-.indexes      -- List all secondary indexes
-.checkpoint   -- Force WAL checkpoint
-.begin        -- Begin a WAL transaction
-.commit       -- Commit a WAL transaction
-.rollback     -- Roll back a WAL transaction (logs intent; see note below)
-.use <table>  -- Switch the active table
-.constants    -- Display internal constants
-.exit         -- Exit database
-```
+| Command | Description |
+|---|---|
+| `.schema` | Show all table schemas |
+| `.btree` | Display B+Tree structure of the active table |
+| `.stats` | Show query execution statistics |
+| `.indexes` | List all secondary indexes |
+| `.checkpoint` | Force WAL checkpoint |
+| `.begin` | Begin a WAL transaction |
+| `.commit` | Commit a WAL transaction |
+| `.rollback` | Roll back a WAL transaction (logs intent; see note below) |
+| `.use <table>` | Switch the active table |
+| `.constants` | Display internal constants |
+| `.exit` | Exit database |
 
-> **Active table:** Statements like `insert`, `select`, `update`, and
-> `delete` that don't include an explicit `FROM`/table target operate on
-> the *active table* — whichever table was most recently created, or
-> whichever you last switched to with `.use <table>`. This state also
-> persists across restarts (MiniDB remembers the last active table).
+> [!IMPORTANT]
+> **Active table:** Statements like `insert`, `select`, `update`, and `delete` that don't include an explicit `FROM`/table target operate on the *active table* — whichever table was most recently created, or whichever you last switched to with `.use <table>`. This state also persists across restarts (MiniDB remembers the last active table).
 
----
+<br>
 
 ## Architecture (High Level)
 
@@ -241,24 +279,21 @@ SQL Query
   Disk I/O
 ```
 
----
+<br>
 
 ## Technical Details
 
-### B+Tree Implementation
+<details open>
+<summary><b>B+Tree Implementation</b></summary>
+<br>
 
 - **Structure**: Self-balancing tree with data in leaf nodes
 - **Page Size**: 4 KB (4096 bytes)
 - **Leaf Capacity**: 13 cells (key + serialized row)
 - **Internal Node Capacity**: 3 keys / 4 children per node before splitting
 - **Operations**: All O(log n) - insert, search, delete, update
-- **Node Splitting**: Automatic for both leaf and internal nodes, including
-  recursive splits that propagate all the way up to the root. Verified
-  correct (via Valgrind, zero errors/leaks) up to 2,000+ rows spanning
-  multiple internal-node levels.
-- **Max table size**: up to 100,000 pages (~400 MB per table at 4 KB/page)
-  before hitting the configured `TABLE_MAX_PAGES` ceiling in
-  `src/storage/pager.h`.
+- **Node Splitting**: Automatic for both leaf and internal nodes, including recursive splits that propagate all the way up to the root. Verified correct (via Valgrind, zero errors/leaks) up to 2,000+ rows spanning multiple internal-node levels.
+- **Max table size**: up to 100,000 pages (~400 MB per table at 4 KB/page) before hitting the configured `TABLE_MAX_PAGES` ceiling in `src/storage/pager.h`.
 
 **Example Tree:**
 ```
@@ -267,14 +302,22 @@ SQL Query
  [1,5,8]  [10,15]  [20,25,30]  ← Leaf nodes with data
 ```
 
-### Secondary Indexes
+</details>
+
+<details>
+<summary><b>Secondary Indexes</b></summary>
+<br>
 
 - Hash-based index mapping column value → primary key
 - Binary search within index for O(log m) lookup
 - Two-step process: index lookup → B+Tree primary key lookup
 - Total cost: O(log m + log n)
 
-### Write-Ahead Logging
+</details>
+
+<details>
+<summary><b>Write-Ahead Logging</b></summary>
+<br>
 
 **Frame Format:**
 ```
@@ -291,17 +334,20 @@ SQL Query
 3. Replay valid frames to restore state
 4. Checkpoint periodically to compact log
 
-### Query Optimizer
+</details>
+
+<details>
+<summary><b>Query Optimizer</b></summary>
+<br>
 
 **Statistics Tracked:**
 - Full scans vs index searches
 - Average rows scanned per query
 - Query efficiency ratio
 
----
+</details>
 
-
----
+<br>
 
 ## Project Structure
 
@@ -327,24 +373,16 @@ minidb/
 ├── Makefile
 └── README.md
 ```
----
+
+<br>
 
 ## Known Limitations
 
-MiniDB is a learning project, not a production database. A few things
-worth knowing before you rely on it for anything real:
+MiniDB is a learning project, not a production database. A few things worth knowing before you rely on it for anything real:
 
-- **Fixed row shape.** Every table is physically stored as one integer
-  primary key plus two string columns, regardless of the column types
-  you declare in `CREATE TABLE`. Extra/differently-typed columns beyond
-  that (e.g. a 4th column, or a `FLOAT`) aren't supported by the storage
-  layer yet — `CREATE TABLE` schemas are used for display and column-name
-  resolution (e.g. in `JOIN`/`WHERE`), but the on-disk layout is always
-  `(id, col2, col3)`.
-- **No `INSERT INTO <table> VALUES (...)` syntax.** Inserts are
-  positional (`insert <id> <col2> <col3>`) and always target the
-  *active* table (see the Meta Commands section above).
+> [!WARNING]
+> **Fixed row shape.** Every table is physically stored as one integer primary key plus two string columns, regardless of the column types you declare in `CREATE TABLE`. Extra/differently-typed columns beyond that (e.g. a 4th column, or a `FLOAT`) aren't supported by the storage layer yet — `CREATE TABLE` schemas are used for display and column-name resolution (e.g. in `JOIN`/`WHERE`), but the on-disk layout is always `(id, col2, col3)`.
+
+- **No `INSERT INTO <table> VALUES (...)` syntax.** Inserts are positional (`insert <id> <col2> <col3>`) and always target the *active* table (see the Meta Commands section above).
 - **Single-condition `WHERE`.** No `AND`/`OR`/compound conditions.
-- **`ORDER BY` sort buffer caps out at 1000 rows** (`rows_buffer` in
-  `execute_select`).
----
+- **`ORDER BY` sort buffer caps out at 1000 rows** (`rows_buffer` in `execute_select`).
